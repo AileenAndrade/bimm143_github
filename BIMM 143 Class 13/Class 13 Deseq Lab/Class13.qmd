@@ -1,0 +1,503 @@
+---
+title: "Class 13 Deseq"
+author: "Aileen Andrade (PID A17033749)"
+date: "02-18-25"
+format: pdf
+---
+
+```{r}
+library("DESeq2")
+```
+
+Today we will analyze data from a published RNA-seq experiment where airway smooth muscle cells were treated with dexamethasone, a synthetic glucocorticoid steriod with anti-inflammatory effects (Himes et al. 2014).
+
+## Import countData and colData
+
+There are two datasets that I need to import/read
+
+- `countData` the transcript countrs per gene (rows) in the different experiments
+- `colData` information (a.k.a. metadata) about the columns (i.e. experiments) in `countData`.
+
+```{r}
+counts <- read.csv("airway_scaledcounts.csv", row.names=1)
+metadata <- read.csv("airway_metadata.csv")
+```
+
+We can have a wee peak at these with `head()`
+
+```{r}
+head(counts)
+```
+
+```{r}
+metadata
+```
+
+> Q1. How many genes are in this dataset?
+
+```{r}
+nrow(counts)
+```
+
+> Q2. How many 'control' cell lines do we have?
+
+```{r}
+table(metadata$dex)
+```
+
+```{r}
+metadata$dex == "control"
+```
+
+```{r}
+sum(metadata$dex == "control")
+```
+
+> Q3. How would you make the above code in either approach more robust? Is there a function that could help here?
+
+```{r}
+control <- metadata[metadata$dex=="control",]
+control.counts <- counts[ ,control$id]
+control.mean <- rowMeans(control.counts)
+head(control.mean)
+```
+
+We can find the average (mean) count values per gene for all "control" experiments and compare it to the mean values for "treated".
+
+- Extract all "control" columns from the `counts` data
+- Find the mean value for each gene in these columns
+
+```{r}
+control.inds <- metadata$dex == "control"
+control.counts <- counts[ , control.inds]
+```
+
+```{r}
+dim(control.counts)
+```
+
+Now find the row wise mean
+
+```{r}
+control.mean <- rowSums(control.counts)/ncol(control.counts)
+head(control.mean)
+```
+> Q4. Follow the same procedure for the treated samples (i.e. calculate the mean per gene across drug treated samples and assign to a labeled vector called treated.mean)
+
+```{r}
+treated.inds <- metadata$dex == "treated"
+treated.counts <- counts[,treated.inds]
+treated.mean <- apply(treated.counts, 1, mean)
+head(treated.mean)
+```
+Find the row wise mean value for each gene in these columns
+```{r}
+treated.mean <-rowSums(treated.counts)/4
+head(treated.mean)
+```
+
+Lets put these two mean values together for easy book-keeping
+
+```{r}
+meancounts <- data.frame(control.mean, treated.mean)
+```
+> Q5 (a). Create a scatter plot showing the mean of the treated samples against the mean of the control samples. Your plot should look something like the following.
+
+Let's have a wee look - i.e. plot control.mean vs treated.mean
+
+```{r}
+plot(meancounts)
+```
+> Q5 (b).You could also use the ggplot2 package to make this figure producing the plot below. What geom_?() function would you use for this plot? 
+
+```{r}
+library(ggplot2)
+
+ggplot(meancounts) +
+  aes(control.mean, treated.mean) +
+  geom_point(alpha=0.3)
+```
+> Q6. Try plotting both axes on a log scale. What is the argument to plot() that allows you to do this? 
+
+Whenever we see data that is so heavily skewed like this we often log transform it so we can see what is going on more easily. 
+ 
+```{r}
+plot(meancounts, log="xy")
+```
+ 
+We most often work in log2 units as this makes the math easier. Let's have a play to see this
+
+```{r}
+# control / treated
+log2(20/20)
+```
+
+```{r}
+log2(40/20)
+```
+
+```{r}
+log2(80/20)
+```
+
+```{r}
+# treated/control
+log2(20/40)
+```
+
+We can now add "log2 fold-change"values to our `meancounts` dataset.
+```{r}
+meancounts$log2fc <- log2(meancounts$treated.mean/
+                             meancounts$control.mean)
+head(meancounts)
+```
+```{r}
+zero.vals <- which(meancounts[,1:2]==0, arr.ind=TRUE)
+
+to.rm <- unique(zero.vals[,1])
+mycounts <- meancounts[-to.rm,]
+head(mycounts)
+```
+
+> Q7. What is the purpose of the arr.ind argument in the which() function call above? Why would we then take the first column of the output and need to call the unique() function?
+
+> Ans. The arr.ind argument in the which() function above serves to get row and column indices for matrix-like data since which() returns a vector of indices. Since meancounts[,1:2]==0 creates a logical matrix TRUE where values are zero, which(meancounts[,1:2]==0, arr.ind=TRUE) returns the row and column indixes where zero values appear. We will remove the zeros from the data.
+
+```{r}
+to.keep <- rowSums(meancounts[,1:2] == 0) == 0
+mycounts <- meancounts[to.keep,]
+nrow(mycounts)
+```
+
+> Q8. Using the up.ind vector above can you determine how many up regulated genes we have at the greater than 2 fc level? 
+
+> Ans. There are 250 up regulated genes that have a greater than 2 fc level.
+
+```{r}
+up.inds <- mycounts$log2fc > 2
+sum(up.inds, na.rm=T)
+```
+
+How many genes are "up" regulated at the common log2 fold-change threshold of +2. 
+```{r}
+up.inds <- meancounts$log2fc >= 2
+sum(up.inds, na.rm=T)
+```
+
+> Q9. Using the down.ind vector above can you determine how many down regulated genes we have at the greater than 2 fc level?
+
+> Ans. There are 367 down regulated genes that have a value greater than 2 fc level.
+
+How many genes are "down regulated" at the threshold of -2?
+```{r}
+down.inds <- mycounts$log2fc < -2
+sum(down.inds, na.rm=T)
+```
+
+```{r}
+down.inds <- meancounts$log2fc <= -2
+sum(down.inds, na.rm=T)
+```
+
+> Q10. Do you trust these results? Why or why not?
+
+> Ans. No, these results should not be trusted yet since the analysis does identify genes with fold changes greater than +- 2, but it does not take statistical significance into account.
+
+## DESeq2 analysis 
+
+To do this the right way we need to consider the significance of the differences not just their magnitude 
+
+```{r}
+#/ message: false
+library(DESeq2)
+```
+
+To use this package it wants countData and colData in a specific format.
+
+```{r}
+dds <- DESeqDataSetFromMatrix(countData = counts, 
+                              colData = metadata,
+                              design = ~dex)
+```
+
+```{r}
+dds <- DESeq(dds)
+```
+
+Extract my results
+```{r}
+res <- results(dds)
+head(res)
+```
+
+Plot of fold-change vs P-value (adjusted for multiple testing)
+```{r}
+plot(res$log2FoldChange, res$padj)
+```
+Take the log of the P-value
+
+```{r}
+plot(res$log2FoldChange, log(res$padj))
+```
+
+We can flip that y-axis by putting a minus sign on it
+```{r}
+plot(res$log2FoldChange, -log(res$padj),
+     xlab="Log2 Fold-change",
+     ylab="-log(P-value)")
+```
+
+```{r}
+log(0.01)
+```
+
+```{r}
+log(0.0000000001)
+```
+
+Let's save our work to date
+
+```{r}
+write.csv(res, file="myresults.csv")
+```
+
+To finish off let's make a nicer volcano plot
+
+- Add the log2 threshold lines of +2/-2
+- Add P-value threshold lines at 0.005
+- Add color to highlight the subset of genes that meet both of the above thresholds.
+
+Make mycols vector for the plot
+```{r}
+mycols = rep("gray", nrow(res))
+mycols[res$log2FoldChange >= 2] <- "red"
+mycols[res$log2FoldChange <= -2] <- "blue"
+mycols[res$padj > 0.05] <- "gray"
+```
+
+Make it with ggplot please...
+```{r}
+ggplot(res) +
+  aes(log2FoldChange, -log(padj)) +
+  geom_point(col=mycols) +
+  geom_vline(xintercept = c(-2,2), col="red")
+```
+
+---
+title: "Class 13 and 14: Deseq and RNA-Seq analysis mini-project"
+author: "Aileen Andrade (PID A17033749)"
+date: "02-20-25"
+format: pdf
+toc: true
+---
+# Class 14: RNA-Seq analysis mini-project  
+
+## Background 
+
+The data for for hands-on session comes from GEO entry: GSE37704, which is associated with the following publication:
+
+> Trapnell C, Hendrickson DG, Sauvageau M, Goff L et al. "Differential analysis of gene regulation at transcript resolution with RNA-seq". Nat Biotechnol 2013 Jan;31(1):46-53. PMID: 23222703
+
+The authors report on differential analysis of lung fibroblasts in response to loss of the developmental transcription factor HOXA1. Their results and others indicate that HOXA1 is required for lung fibroblast and HeLa cell cycle progression. In particular their analysis show that "loss of HOXA1 results in significant expression level changes in thousands of individual transcripts, along with isoform switching events in key regulators of the cell cycle". For our session we have used their Sailfish gene-level estimated counts and hence are restricted to protein-coding genes only.
+
+## Data Import
+
+```{r}
+counts <- read.csv("GSE37704_featurecounts.csv", row.names=1)
+colData <- read.csv("GSE37704_metadata.csv")
+```
+
+## Inspect and Tidy data
+
+Do the `counts` columns match the `colData` rows?
+
+```{r}
+head(counts)
+```
+
+```{r}
+head(colData)
+```
+
+The `counts` data set's columns doesn't exactly match the rows of the `colData` dataset, we need to remove the `length` column to fix that.
+
+The fix here seems to be removing the first column from counts.
+
+> Q. Complete the code below to remove the troublesome first column from countData
+
+```{r}
+# Note we need to remove the odd first $length col
+countData <- counts[,-1]
+head(countData)
+```
+
+Check for matching countData and colData
+```{r}
+colnames(countData) == colData$id
+```
+
+> Q1. How many genes are in countData?
+
+```{r}
+nrow(countData)
+```
+
+
+> Q2. Filter countData to exclude genes (i.e. rows) where we have 0 read count across all samples (i.e. columns). How many genes are left?
+
+```{r}
+to.keep.inds <- rowSums(countData) > 0
+```
+
+```{r}
+new.counts <- countData[to.keep.inds, ]
+```
+
+```{r}
+nrow(new.counts)
+```
+
+
+## Setup for DESeq
+
+```{r}
+#| message: false
+library(DESeq2)
+```
+
+Setup input object for DESeq
+```{r}
+dds <- DESeqDataSetFromMatrix(countData = new.counts,
+                              colData = colData,
+                              design = ~condition)
+```
+
+## Run DESeq
+
+```{r}
+dds <- DESeq(dds)
+res <- results(dds)
+```
+```{r}
+head(res)
+```
+
+## Volcano Plot of results
+
+```{r}
+library(ggplot2)
+```
+
+```{r}
+# Make a color vector for all genes
+mycols <- rep("gray", nrow(res))
+
+# Color red the genes with absolute fold change above 2
+mycols[ abs(res$log2FoldChange) > 2 ] <- "red"
+
+# Color blue those with adjusted p-value less than 0.01
+#  and absolute fold change more than 2
+inds <- (abs(res$log2FoldChange < 0.01)) & (abs(res$log2FoldChange) > 2 )
+mycols[ inds ] <- "blue"
+```
+
+```{r}
+ggplot(res) +
+  aes(log2FoldChange, -log(padj)) +
+  geom_point(alpha=0.3, col=mycols) +
+  geom_vline(xintercept=c(-2,2), col="red") +
+  geom_hline(yintercept=0.05, col="red")
+```
+
+## Gene annotation
+
+> Q. Use the mapIDs() function multiple times to add SYMBOL, ENTREZID and GENENAME annotation to our results by completing the code below.
+
+```{r}
+library("AnnotationDbi")
+library("org.Hs.eg.db")
+
+columns(org.Hs.eg.db)
+
+res$symbol = mapIds(org.Hs.eg.db,
+                    keys=row.names(res), 
+                    keytype="ENSEMBL",
+                    column="SYMBOL",
+                    multiVals="first")
+
+res$entrez = mapIds(org.Hs.eg.db,
+                    keys=row.names(res),
+                    keytype="ENSEMBL",
+                    column="ENTREZID",
+                    multiVals="first")
+
+res$name =   mapIds(org.Hs.eg.db,
+                    keys=row.names(res),
+                    keytype="ENSEMBL",
+                    column="GENENAME",
+                    multiVals="first")
+
+head(res, 10)
+```
+
+```{r}
+res = res[order(res$pvalue),]
+write.csv(res, file="deseq_results.csv")
+```
+
+## Pathway analysis
+
+```{r}
+library(gage)
+library(gageData)
+library(pathview)
+```
+
+```{r}
+data(kegg.sets.hs)
+data(sigmet.idx.hs)
+
+kegg.sets.hs = kegg.sets.hs[sigmet.idx.hs]
+
+head(kegg.sets.hs, 3)
+```
+
+```{r}
+foldchanges = res$log2FoldChange
+names(foldchanges) = res$entrez
+head(foldchanges)
+```
+
+Run pathway analysis with KEGG
+```{r}
+keggres = gage(foldchanges, gsets=kegg.sets.hs)
+```
+
+Cell cycle figure
+```{r}
+pathview(gene.data=foldchanges, pathway.id="hsa04110")
+```
+
+![](hsa04110.pathview.png)
+
+## Gene ontology analysis
+
+Run pathway analysis with GO
+```{r}
+data(go.sets.hs)
+
+gobpres = gage(foldchanges, gsets=go.sets.hs)
+
+```
+
+```{r}
+data(go.sets.hs)
+data(go.subs.hs)
+
+# Focus on Biological Process subset of GO
+gobpsets = go.sets.hs[go.subs.hs$BP]
+
+gobpres = gage(foldchanges, gsets=gobpsets, same.dir=TRUE)
+
+head(gobpres$less)
+```
