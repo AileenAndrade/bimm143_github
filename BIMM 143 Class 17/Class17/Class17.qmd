@@ -1,0 +1,130 @@
+---
+title: "Class17"
+author: "Aileen Andrade (PID A17033749"
+date: "03-04-25"
+format: pdf
+---
+Instance ID
+
+i-0b7b517a68441b279 (bimm143_aileenandrade)
+Open an SSH client.
+
+Locate your private key file. The key used to launch this instance is bimm143_aileenandrade.pem
+
+Run this command, if necessary, to ensure your key is not publicly viewable.
+chmod 400 "bimm143_aileenandrade.pem"
+
+Connect to your instance using its Public DNS:
+ec2-54-69-133-115.us-west-2.compute.amazonaws.com
+
+Example:
+
+ssh -i keyfile ubuntu@ec2-54-69-133-115.us-west-2.compute.amazonaws.com
+
+scp -i keyfile ubuntu@ec2-54-69-133-115.us-west-2.compute.amazonaws.com:~/*_quant .
+
+> Q1. File paths correct for data input.
+
+```{r}
+library(tximport)
+library(rhdf5)
+
+# setup the folder and filenames to read
+folders <- dir(pattern="SRR21568*")
+samples <- sub("_quant", "", folders)
+files <- file.path( folders, "abundance.h5" )
+names(files) <- samples
+
+txi.kallisto <- tximport(files, type = "kallisto", txOut = TRUE)
+```
+
+```{r}
+head(txi.kallisto$counts)
+```
+
+```{r}
+colSums(txi.kallisto$counts)
+```
+
+```{r}
+sum(rowSums(txi.kallisto$counts)>0)
+```
+
+```{r}
+to.keep <- rowSums(txi.kallisto$counts) > 0
+kset.nonzero <- txi.kallisto$counts[to.keep,]
+```
+
+```{r}
+keep2 <- apply(kset.nonzero,1,sd)>0
+x <- kset.nonzero[keep2,]
+```
+
+```{r}
+pca <- prcomp(t(x), scale=TRUE)
+```
+
+```{r}
+summary(pca)
+```
+
+```{r}
+plot(pca$x[,1], pca$x[,2],
+     col=c("blue","blue","red","red"),
+     xlab="PC1", ylab="PC2", pch=16)
+```
+
+> Q2. Use ggplot to make a similar figure of PC1 vs PC2 and a seperate figure PC1 vs PC3 and PC2 vs PC3.
+
+```{r}
+library(ggplot2)
+library(ggrepel)
+
+# Make metadata object for the samples
+colData <- data.frame(condition = factor(rep(c("control", "treatment"), each = 2)))
+rownames(colData) <- colnames(txi.kallisto$counts)
+
+# Make the data.frame for ggplot 
+y <- as.data.frame(pca$x)
+y$Condition <- as.factor(colData$condition)
+
+ggplot(y) +
+  aes(PC1, PC2, col=Condition) +
+  geom_point() +
+  geom_text_repel(label=rownames(y)) +
+  theme_bw()
+```
+
+```{r}
+# Plot PC1 vs PC2
+p1 <- ggplot(y) +
+  aes(x = PC1, y = PC2, col = Condition) +
+  geom_point(size = 3) +
+  geom_text_repel(label = rownames(y)) +
+  labs(title = "PCA Plot: PC1 vs PC2") +
+  theme_bw()
+print(p1)
+```
+
+```{r}
+# Plot PC1 vs PC3
+p2 <- ggplot(y) +
+  aes(x = PC1, y = PC3, col = Condition) +
+  geom_point(size = 3) +
+  geom_text_repel(label = rownames(y)) +
+  labs(title = "PCA Plot: PC1 vs PC3") +
+  theme_bw()
+print(p2)
+```
+
+```{r}
+# Plot PC2 vs PC3
+p3 <- ggplot(y) +
+  aes(x = PC2, y = PC3, col = Condition) +
+  geom_point(size = 3) +
+  geom_text_repel(label = rownames(y)) +
+  labs(title = "PCA Plot: PC2 vs PC3") +
+  theme_bw()
+print(p3)
+```
+
