@@ -18,7 +18,7 @@ My classwork from W25 [BIMM143](https://bioboot.github.io/bimm143_W25/schedule/#
 
 - Class11 [Structural Bioinformatics (pt2 AlphaFold)](https://htmlpreview.github.io/?https://raw.githubusercontent.com/AileenAndrade/bimm143_github/refs/heads/main/Class11/Class11.html)
 
-- Class12 [Genome informatics and high throughput sequencing](Analyzed our Find a Gene Project Protein Using Alphafold)
+- Class12 [Genome informatics and high throughput sequencing](https://htmlpreview.github.io/?https://raw.githubusercontent.com/AileenAndrade/bimm143_github/refs/heads/main/Class12/Class12.html)
 
 - Class13 [Transcriptomics, RNA-Seq analysis, and the interpretation of gene lists](https://htmlpreview.github.io/?https://raw.githubusercontent.com/AileenAndrade/bimm143_github/refs/heads/main/Class13/Class13.html)
 
