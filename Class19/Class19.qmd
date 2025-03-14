@@ -1,0 +1,40 @@
+---
+title: "Class 19 Mini Project: Cancer Mutation AnalysisUntitled"
+author: "Aileen Andrade (PID A17033749)"
+format: pdf
+---
+
+```{r}
+library(bio3d)
+```
+
+```{r}
+sequence <- read.fasta("A17033749_mutant_seq.fa")
+```
+
+```{r}
+score <- conserv(sequence)
+score
+```
+
+```{r}
+positions <- which(score !=1)
+positions
+```
+
+```{r}
+residues <- sequence$ali[, positions]
+residues
+```
+
+```{r}
+paste(residues[,1], positions, residues [,2], sep="")
+```
+
+Read in AlphaFold3 CIF model and export a PDB for FTMAP
+```{r}
+cif.file <- "fold_2025_03_11_10_47_model_0.cif"
+x <- read.cif(cif.file)
+write.pdb(x, file="AF_model.pdb")
+```
+
