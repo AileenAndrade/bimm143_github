@@ -1,62 +1,67 @@
 ---
 title: "AlphaFold Analysis"
-author: "Aileen Andrade"
-format: html
+author: "Aileen Andrade (PID A17033749)"
+format: pdf
 ---
 
 Here we analyze our AlphaFold structure prediction models. The input directory/folder comes from the ColabFold server:
 
+## 7.
+
+```{r}
+library("bio3d")
+library(pheatmap)
+alignment <- read.fasta("muscle-I20250304-204254-0769-79950964-p1m.fa") 
+```
+
+```{r}
+identity_matrix <- seqidentity(alignment) 
+```
+
+```{r}
+p <- pheatmap(identity_matrix)
+```
+
 ## 8. Custom analysis of resulting models
 
 ```{r}
-# Change this for YOUR results dir name
-results_dir <- "~/Documents/BIMM 143/Take Home Class 11/hivpr_monomer_94b5b//" 
-
+results_dir <- "test_a8676"
 ```
 
 ```{r}
-# File names for all PDB models
-pdb_files <- list.files(path=results_dir,
-                        pattern="*.pdb",
-                        full.names = TRUE)
-
-# Print our PDB file names
+pdb_files <-list.files(path=results_dir,
+                       pattern="*.pdb",
+                       full.names = TRUE)
 basename(pdb_files)
 ```
+```{r}
+alignment$id
+```
 
-I will use the Bio3D package for analysis
 ```{r}
 library(bio3d)
 ```
 
-Align and superpose
 
 ```{r}
-pdbs <- pdbaln(pdb_files, fit=TRUE, exefile="msa")
-pdbs
+pdb_inputseq <- paste0(alignment$ali[7,], collapse ="") #Row 7 is the Haliotis_discus_RBP4_homolog (novel protein)
+
+blast_pdb_res <- blast.pdb(pdb_inputseq)
+
+hits <- blast_pdb_res$hit.tbl
 ```
 
 ```{r}
-pc <- pca(pdbs)
-plot(pc)
+pdb_annot <- pdb.annotate(c("2HZQ_A", "7YX1_A", "1Z24_A"))
+
+pdb_annot_res <- pdb_annot[,c(1,5,6,11)]
+
+hits_stats <- hits[hits$subjectids %in% c("2HZQ_A", "7YX1_A", "1Z24_A"), c("identity", "evalue")]
+
+q8_res <- cbind(pdb_annot_res, hits_stats)
+
+q8_res <- q8_res[, c(3,1,2,4,5)]
+
+write.csv(q8_res, "Q8_top3_res.csv", row.names = F)
+
 ```
-
-## RMSD analysis
-RMSD is a common measure of structural distance used in structural biology.
-
-```{r}
-rd <- rmsd(pdbs, fit=T)
-```
-
-```{r}
-range(rd)
-```
-
-```{r}
-library(pheatmap)
-
-colnames(rd) <- paste0("m",1:5)
-rownames(rd) <- paste0("m",1:5)
-pheatmap(rd)
-```
-
