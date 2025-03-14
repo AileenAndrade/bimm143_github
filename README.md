@@ -32,4 +32,4 @@ My classwork from W25 [BIMM143](https://bioboot.github.io/bimm143_W25/schedule/#
 
 - Class18 [Investigating pertussis resurgence mini project](https://htmlpreview.github.io/?https://raw.githubusercontent.com/AileenAndrade/bimm143_github/refs/heads/main/Class18/Class18.html)
 
-- Class19 [Mini Project: Cancer Mutation Analysis](https://htmlpreview.github.io/?)
+- Class19 [Mini Project: Cancer Mutation Analysis](https://htmlpreview.github.io/?https://raw.githubusercontent.com/AileenAndrade/bimm143_github/refs/heads/main/Class19/Class19.html)
